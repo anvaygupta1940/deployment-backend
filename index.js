@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
+const { createClient } = require("redis");
 
 
 const app = express();
@@ -10,6 +10,21 @@ app.use(express.json());
 app.use(
   cors({ origin: process.env.FRONTEND_URL, credentials: true })
 );
+
+//  Create Redis client
+const redisClient = createClient({
+  socket: {
+    host: '13.203.67.132',
+    port: 6379
+  },
+  password: 'anabhavy' // optional
+});
+
+// 🔁 Connect to Redis
+redisClient.connect()
+  .then(() => console.log('✅ Connected to Redis'))
+  .catch(err => console.error('❌ Redis connection error:', err));
+
 
 
 mongoose.connect(process.env.MONGODB_URI);
@@ -59,6 +74,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+
 // Get session user
 app.get('/api/me', (req, res) => {
   // if (!req.session.user) return res.status(401).send('Unauthorized');
@@ -90,8 +106,14 @@ app.post("/api/addUser", async (req, res) => {
   }
 });
 
-app.get("/", async (req, res) => {
-  res.send("Server is up and running");
+app.get("/api/counter", async (req, res) => {
+  try {
+    let count = await redisClient.incr('counter');
+    res.send(`🔁 Counter value: ${count}`);
+  } catch (err) {
+    console.error('❌ Redis error on /counter:', err);
+    res.status(500).send('Redis error');
+  }
 });
 
 app.listen(process.env.PORT, () =>
